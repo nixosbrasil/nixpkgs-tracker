@@ -115,9 +115,17 @@ async function handlePR(pr: string) {
     return;
   }
 
-  const title = await getPR(pr);
+  const prHeader = await getPR(pr);
 
-  if (title.status === 404) {
+  if (prHeader.closed) {
+    titleElement.innerText = "PR is closed";
+    titleElement.style.color = "red";
+    deleteHistory(prNumber);
+    enableButton(true);
+    return;
+  }
+
+  if (prHeader.status === 404) {
     titleElement.innerText = "PR not found";
     titleElement.href = "#";
     titleElement.style.color = "red";
@@ -125,14 +133,14 @@ async function handlePR(pr: string) {
     return;
   }
 
-  if (title.status === 403) {
+  if (prHeader.status === 403) {
     titleElement.innerText = "Rate limit exceeded -- Please set token";
     titleElement.style.color = "red";
     enableButton(true);
     return;
   }
 
-  if (title.status === 401) {
+  if (prHeader.status === 401) {
     titleElement.innerText = "Unauthorized -- Please set correct token";
     titleElement.style.color = "red";
 
@@ -144,7 +152,7 @@ async function handlePR(pr: string) {
   }
 
   titleElement.href = "https://github.com/nixos/nixpkgs/pull/" + pr;
-  setPRtitle(title.title);
+  setPRtitle(prHeader.title);
 
   const mergeCommit = await getMeregeCommit(pr);
   const isPrSaved = history.some((h: { pr: number }) => h.pr === prNumber);
@@ -172,7 +180,7 @@ async function handlePR(pr: string) {
     deleteHistory(prNumber);
   }
   if (status === 0 && !isPrSaved) {
-    saveHistory({ pr: prNumber, title: title.title, mergeCommit });
+    saveHistory({ pr: prNumber, title: prHeader.title, mergeCommit });
   }
 
   enableButton(true);

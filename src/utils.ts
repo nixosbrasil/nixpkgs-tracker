@@ -32,6 +32,7 @@ const headers = header();
 type PR = {
   title: string;
   status: number;
+  closed: boolean;
 };
 
 export async function getPR(pr: string): Promise<PR> {
@@ -45,6 +46,7 @@ export async function getPR(pr: string): Promise<PR> {
   return {
     title: data.title,
     status: response.status,
+    closed: data.state === "closed",
   };
 }
 
@@ -58,6 +60,8 @@ export async function getMeregeCommit(pr: string): Promise<string> {
 
   return data.merge_commit_sha;
 }
+
+
 
 export async function isContain(
   branch: string,
