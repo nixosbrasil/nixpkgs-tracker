@@ -46,7 +46,7 @@ export async function getPR(pr: string): Promise<PR> {
   return {
     title: data.title,
     status: response.status,
-    closed: data.state === "closed",
+    closed: data.state === "closed" && !data.merged_at,
   };
 }
 
