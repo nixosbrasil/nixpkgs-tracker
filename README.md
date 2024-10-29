@@ -8,6 +8,11 @@ it does not pass any requests through server to get PR status.
 
 Therefore, there is no need to worry about any performance issues.
 
+You could get static files with:
+```sh
+  nix build github:ocfox/nixpkgs-tracker
+```
+
 ### Features
 
 - [x] Show PR status
