@@ -2,22 +2,17 @@ import "./style.css";
 import setupColorScheme from "./scheme.ts";
 import {
   branches,
-  deleteHistory,
   getMeregeCommit,
   getPR,
   hasToken,
   isContain,
-  saveHistory,
   setToken,
+  type PR,
 } from "./utils.ts";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div>
     <h1 id="title" >Nixpkgs-Tracker</h1>
-    <div class="history" class="card">
-      <h3>History</h3>
-      <ul class="history-link"></ul>
-    </div>
     <p>Check if a PR is merged to the following branches. <a href="https://github.com/ocfox/nixpkgs-tracker" target="_blank">Source</a></p>
     <p>If you just check it a couple times an hour, it will work fine without the token.</p>
     <div class="token">
@@ -70,16 +65,6 @@ checkButton.addEventListener("click", () => {
   redirectToPRPage();
 });
 
-const historyElement =
-  document.querySelector<HTMLUListElement>(".history-link")!;
-const history = JSON.parse(localStorage.getItem("history") || "[]");
-console.log(history);
-history.forEach((h: { pr: number; title: string }) => {
-  const li = document.createElement("li");
-  li.innerHTML = `<a href="?pr=${h.pr}">${h.title}</a>`;
-  historyElement.appendChild(li);
-});
-
 async function redirectToPRPage() {
   const match = inputElement.value.match(/\/pull\/(\d+)/);
   const pr = match ? match[1] : inputElement.value;
@@ -122,7 +107,6 @@ async function handlePR(pr: string) {
   if (prHeader.closed) {
     titleElement.innerText = "PR is closed";
     titleElement.style.color = "red";
-    deleteHistory(prNumber);
     enableButton(true);
     return;
   }
@@ -157,8 +141,6 @@ async function handlePR(pr: string) {
   setPRtitle(prHeader.title);
 
   const mergeCommit = await getMeregeCommit(pr);
-  const isPrSaved = history.some((h: { pr: number }) => h.pr === prNumber);
-  let status = 1;
 
   async function checkBranch(branch: string) {
     const merged = await isContain(branch, mergeCommit);
@@ -172,17 +154,39 @@ async function handlePR(pr: string) {
       branchElement.textContent = `${branch} ❌`;
       branchElement.classList.add("unmerged");
       branchElement.style.color = "gray";
-      status = 0;
     }
   }
 
-  await Promise.all(branches.map(checkBranch));
-
-  if (status === 1 && isPrSaved) {
-    deleteHistory(prNumber);
+  async function checkBaseBranch(header: PR) {
+    const baseBranch = header.base;
+    const merged = header.merged;
+    const branchElement = document.querySelector<HTMLHeadingElement>(
+      `#base-branch`,
+    )!;
+    if (merged) {
+      branchElement.textContent = `${baseBranch} ✅`;
+      branchElement.style.color = "green";
+    } else {
+      branchElement.textContent = `${baseBranch} ❌`;
+      branchElement.classList.add("unmerged");
+      branchElement.style.color = "gray";
+    }
   }
-  if (status === 0 && !isPrSaved) {
-    saveHistory({ pr: prNumber, title: prHeader.title, mergeCommit });
+
+  if (prHeader.base && prHeader.base && prHeader.base.startsWith("release-")) {
+    const releaseBranch = prHeader.base;
+    const branchContainer = document.querySelector<HTMLDivElement>("#branch")!;
+
+    branchContainer.innerHTML = "";
+
+    const releaseBranchElement = document.createElement("h2");
+    releaseBranchElement.id = "base-branch";
+    releaseBranchElement.textContent = releaseBranch;
+    branchContainer.appendChild(releaseBranchElement);
+
+    await checkBaseBranch(prHeader);
+  } else {
+    await Promise.all(branches.map(checkBranch));
   }
 
   enableButton(true);

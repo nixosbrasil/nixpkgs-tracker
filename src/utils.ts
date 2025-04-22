@@ -29,10 +29,12 @@ function header() {
 
 const headers = header();
 
-type PR = {
+export type PR = {
   title: string;
   status: number;
   closed: boolean;
+  merged: boolean;
+  base: string;
 };
 
 export async function getPR(pr: string): Promise<PR> {
@@ -47,6 +49,8 @@ export async function getPR(pr: string): Promise<PR> {
     title: data.title,
     status: response.status,
     closed: data.state === "closed" && !data.merged_at,
+    merged: data.merged_at !== null,
+    base: data.base.ref,
   };
 }
 
