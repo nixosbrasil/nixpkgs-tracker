@@ -50,7 +50,7 @@ export async function getPR(pr: string): Promise<PR> {
     status: response.status,
     closed: data.state === "closed" && !data.merged_at,
     merged: data.merged_at !== null,
-    base: data.base.ref,
+    base: data.base?.ref,
   };
 }
 
