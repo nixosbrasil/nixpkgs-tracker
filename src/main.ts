@@ -89,6 +89,7 @@ function enableButton(set: boolean) {
 
 function setPRtitle(title: string) {
   titleElement.innerText = title;
+  document.title = title;
 }
 
 async function handlePR(pr: string) {
