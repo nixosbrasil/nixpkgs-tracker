@@ -25,13 +25,13 @@ export function hasToken(): boolean {
   return !!getToken();
 }
 
-function header() {
+function header(extraHeaders: Record<string, string> = {}) {
   const token = getToken();
+  const headers: Record<string, string> = { ...extraHeaders };
   if (token) {
-    return {
-      Authorization: `token ${token}`,
-    };
+    headers.Authorization = `token ${token}`;
   }
+  return headers;
 }
 
 export async function getAllBranches(): Promise<string[]> {
@@ -60,6 +60,18 @@ export async function getAllBranches(): Promise<string[]> {
   }
 }
 
+export type User = {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+};
+
+export type Label = {
+  name: string;
+  color: string;
+  description: string;
+};
+
 export type PR = {
   title: string;
   status: number;
@@ -67,10 +79,18 @@ export type PR = {
   merged: boolean;
   base: string;
   merge_commit_sha: string;
+  body: string;
+  body_html?: string;
+  user: User;
+  merged_by: User | null;
+  labels: Label[];
+  head_sha: string;
 };
 
 export async function getPR(pr: string): Promise<PR> {
-  const headers = header();
+  const headers = header({
+    "Accept": "application/vnd.github.html+json"
+  });
   const response = await fetch(
     `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}`,
     { headers },
@@ -85,7 +105,98 @@ export async function getPR(pr: string): Promise<PR> {
     merged: data.merged_at !== null,
     base: data.base?.ref,
     merge_commit_sha: data.merge_commit_sha,
+    body: data.body,
+    body_html: data.body_html,
+    user: data.user,
+    merged_by: data.merged_by,
+    labels: data.labels,
+    head_sha: data.head?.sha,
   };
+}
+
+export async function getReviews(pr: string): Promise<User[]> {
+  const headers = header();
+  const response = await fetch(
+    `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}/reviews`,
+    { headers }
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+
+  // Filter for approved and deduplicate users
+  const approvers = new Map<string, User>();
+  data.forEach((review: any) => {
+    if (review.state === 'APPROVED') {
+      approvers.set(review.user.login, review.user);
+    }
+  });
+
+  return Array.from(approvers.values());
+}
+
+export type CIStatus = {
+    id: string;
+    name: string;
+    state: string; // success, failure, pending, etc.
+    url: string;
+    description: string;
+};
+
+export async function getDetailedCIStatus(sha: string): Promise<CIStatus[]> {
+    const headers = header();
+
+    // Fetch Statuses (e.g. OfBorg)
+    const statusesPromise = fetch(
+        `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/statuses`,
+        { headers }
+    ).then(res => res.ok ? res.json() : []);
+
+    // Fetch Check Runs (e.g. GitHub Actions)
+    const checkRunsPromise = fetch(
+        `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/check-runs`,
+        { headers }
+    ).then(res => res.ok ? res.json() : { check_runs: [] });
+
+    const [statuses, checkRunsData] = await Promise.all([statusesPromise, checkRunsPromise]);
+
+    const ciStatuses: CIStatus[] = [];
+
+    // Process Statuses
+    // Statuses are returned latest first. We want unique contexts.
+    const processedContexts = new Set<string>();
+    for (const status of statuses) {
+        if (!processedContexts.has(status.context)) {
+            processedContexts.add(status.context);
+            ciStatuses.push({
+                id: status.id.toString(),
+                name: status.context,
+                state: status.state,
+                url: status.target_url,
+                description: status.description || ""
+            });
+        }
+    }
+
+    // Process Check Runs
+    for (const run of checkRunsData.check_runs) {
+         let state = 'pending';
+         if (run.status === 'completed') {
+             state = run.conclusion === 'success' ? 'success' : 'failure';
+             if (run.conclusion === 'skipped' || run.conclusion === 'neutral') state = 'neutral';
+         } else {
+             state = 'pending';
+         }
+
+         ciStatuses.push({
+             id: run.id.toString(),
+             name: run.name,
+             state: state,
+             url: run.html_url,
+             description: run.output?.title || ""
+         });
+    }
+
+    return ciStatuses;
 }
 
 export async function isContain(
