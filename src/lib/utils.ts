@@ -60,6 +60,18 @@ export async function getAllBranches(): Promise<string[]> {
   }
 }
 
+export type User = {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+};
+
+export type Label = {
+  name: string;
+  color: string;
+  description: string;
+};
+
 export type PR = {
   title: string;
   status: number;
@@ -67,6 +79,11 @@ export type PR = {
   merged: boolean;
   base: string;
   merge_commit_sha: string;
+  body: string;
+  user: User;
+  merged_by: User | null;
+  labels: Label[];
+  head_sha: string;
 };
 
 export async function getPR(pr: string): Promise<PR> {
@@ -85,7 +102,46 @@ export async function getPR(pr: string): Promise<PR> {
     merged: data.merged_at !== null,
     base: data.base?.ref,
     merge_commit_sha: data.merge_commit_sha,
+    body: data.body,
+    user: data.user,
+    merged_by: data.merged_by,
+    labels: data.labels,
+    head_sha: data.head?.sha,
   };
+}
+
+export async function getReviews(pr: string): Promise<User[]> {
+  const headers = header();
+  const response = await fetch(
+    `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}/reviews`,
+    { headers }
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+
+  // Filter for approved and deduplicate users
+  const approvers = new Map<string, User>();
+  data.forEach((review: any) => {
+    if (review.state === 'APPROVED') {
+      approvers.set(review.user.login, review.user);
+    }
+  });
+
+  return Array.from(approvers.values());
+}
+
+export async function getCIStatus(sha: string): Promise<{ state: string, description: string } | null> {
+    const headers = header();
+    const response = await fetch(
+      `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/status`,
+      { headers }
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+        state: data.state,
+        description: data.description ?? ""
+    };
 }
 
 export async function isContain(
