@@ -6,19 +6,20 @@
     getAllBranches,
     getPR,
     getReviews,
-    getCIStatus,
+    getDetailedCIStatus,
     hasToken,
     setToken,
     isContain,
     type PR,
     type User,
+    type CIStatus,
     saveHistory,
   } from "$lib/utils";
 
   let prNumber: string;
   let prHeader: PR | null = null;
   let approvers: User[] = [];
-  let ciStatus: { state: string; description: string } | null = null;
+  let ciStatuses: CIStatus[] = [];
   let loading = true;
   let error = "";
   let branches: string[] = defaultBranches;
@@ -102,7 +103,7 @@
     // Fetch Reviews and CI Status
     approvers = await getReviews(pr);
     if (header.head_sha) {
-        ciStatus = await getCIStatus(header.head_sha);
+        ciStatuses = await getDetailedCIStatus(header.head_sha);
     }
 
     const mergeCommit = header.merge_commit_sha;
@@ -161,6 +162,13 @@
       const b = parseInt(hex.substr(4, 2), 16);
       const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
       return (yiq >= 128) ? 'black' : 'white';
+  }
+
+  function getStatusColor(state: string) {
+      if (state === 'success') return 'badge-success';
+      if (state === 'failure' || state === 'error') return 'badge-error';
+      if (state === 'pending' || state === 'in_progress') return 'badge-warning';
+      return 'badge-neutral';
   }
 </script>
 
@@ -224,14 +232,33 @@
                  <span class="badge badge-lg {prHeader.closed && !prHeader.merged ? 'badge-error' : (prHeader.merged ? 'badge-success' : 'badge-neutral')}">
                     {prHeader.merged ? 'Merged' : (prHeader.closed ? 'Closed' : 'Open')}
                 </span>
-                {#if ciStatus}
-                    <div class="tooltip" data-tip={ciStatus.description || ciStatus.state}>
-                        <span class="badge badge-lg gap-1 {ciStatus.state === 'success' ? 'badge-success' : (ciStatus.state === 'pending' ? 'badge-warning' : 'badge-error')}">
-                            CI: {ciStatus.state}
-                        </span>
-                    </div>
-                {/if}
             </div>
+
+            {#if ciStatuses.length > 0}
+                <div class="mb-4">
+                    <h3 class="font-bold mb-2">CI Status</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {#each ciStatuses as status}
+                            <a href={status.url} target="_blank" class="tooltip" data-tip={status.description || status.state}>
+                                <span class="badge {getStatusColor(status.state)} gap-1">
+                                    {#if status.state === 'success'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                        </svg>
+                                    {:else if status.state === 'failure' || status.state === 'error'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                    {:else}
+                                        <span class="loading loading-spinner loading-xs"></span>
+                                    {/if}
+                                    {status.name}
+                                </span>
+                            </a>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
 
             <div class="flex flex-wrap gap-2 mb-4">
                 {#each prHeader.labels as label}
@@ -252,7 +279,7 @@
                 <div class="flex flex-col gap-2">
                     <div class="flex items-center gap-2">
                          <strong>Created by:</strong>
-                         <a href={prHeader.user.html_url} target="_blank" class="flex items-center gap-1 link link-hover">
+                         <a href={prHeader.user.html_url} target="_blank" class="badge badge-lg gap-2 pl-0 hover:bg-base-200 transition-colors">
                              <div class="avatar">
                                 <div class="w-6 rounded-full">
                                     <img src={prHeader.user.avatar_url} alt={prHeader.user.login} />
@@ -264,7 +291,7 @@
                      {#if prHeader.merged_by}
                         <div class="flex items-center gap-2">
                             <strong>Merged by:</strong>
-                             <a href={prHeader.merged_by.html_url} target="_blank" class="flex items-center gap-1 link link-hover">
+                             <a href={prHeader.merged_by.html_url} target="_blank" class="badge badge-lg gap-2 pl-0 hover:bg-base-200 transition-colors">
                                  <div class="avatar">
                                     <div class="w-6 rounded-full">
                                         <img src={prHeader.merged_by.avatar_url} alt={prHeader.merged_by.login} />
@@ -278,12 +305,13 @@
                          <div class="flex items-center gap-2 flex-wrap">
                             <strong>Approved by:</strong>
                             {#each approvers as approver}
-                                <a href={approver.html_url} target="_blank" class="tooltip" data-tip={approver.login}>
+                                <a href={approver.html_url} target="_blank" class="badge badge-lg gap-2 pl-0 hover:bg-base-200 transition-colors">
                                      <div class="avatar">
-                                        <div class="w-6 rounded-full ring ring-success ring-offset-base-100 ring-offset-1">
+                                        <div class="w-6 rounded-full">
                                             <img src={approver.avatar_url} alt={approver.login} />
                                         </div>
                                      </div>
+                                     {approver.login}
                                 </a>
                             {/each}
                          </div>

@@ -134,18 +134,69 @@ export async function getReviews(pr: string): Promise<User[]> {
   return Array.from(approvers.values());
 }
 
-export async function getCIStatus(sha: string): Promise<{ state: string, description: string } | null> {
+export type CIStatus = {
+    id: string;
+    name: string;
+    state: string; // success, failure, pending, etc.
+    url: string;
+    description: string;
+};
+
+export async function getDetailedCIStatus(sha: string): Promise<CIStatus[]> {
     const headers = header();
-    const response = await fetch(
-      `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/status`,
-      { headers }
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return {
-        state: data.state,
-        description: data.description ?? ""
-    };
+
+    // Fetch Statuses (e.g. OfBorg)
+    const statusesPromise = fetch(
+        `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/statuses`,
+        { headers }
+    ).then(res => res.ok ? res.json() : []);
+
+    // Fetch Check Runs (e.g. GitHub Actions)
+    const checkRunsPromise = fetch(
+        `https://api.github.com/repos/nixos/nixpkgs/commits/${sha}/check-runs`,
+        { headers }
+    ).then(res => res.ok ? res.json() : { check_runs: [] });
+
+    const [statuses, checkRunsData] = await Promise.all([statusesPromise, checkRunsPromise]);
+
+    const ciStatuses: CIStatus[] = [];
+
+    // Process Statuses
+    // Statuses are returned latest first. We want unique contexts.
+    const processedContexts = new Set<string>();
+    for (const status of statuses) {
+        if (!processedContexts.has(status.context)) {
+            processedContexts.add(status.context);
+            ciStatuses.push({
+                id: status.id.toString(),
+                name: status.context,
+                state: status.state,
+                url: status.target_url,
+                description: status.description || ""
+            });
+        }
+    }
+
+    // Process Check Runs
+    for (const run of checkRunsData.check_runs) {
+         let state = 'pending';
+         if (run.status === 'completed') {
+             state = run.conclusion === 'success' ? 'success' : 'failure';
+             if (run.conclusion === 'skipped' || run.conclusion === 'neutral') state = 'neutral';
+         } else {
+             state = 'pending';
+         }
+
+         ciStatuses.push({
+             id: run.id.toString(),
+             name: run.name,
+             state: state,
+             url: run.html_url,
+             description: run.output?.title || ""
+         });
+    }
+
+    return ciStatuses;
 }
 
 export async function isContain(
