@@ -235,27 +235,23 @@
             </div>
 
             {#if ciStatuses.length > 0}
-                <div class="mb-4">
-                    <h3 class="font-bold mb-2">CI Status</h3>
-                    <div class="flex flex-wrap gap-2">
-                        {#each ciStatuses as status}
-                            <a href={status.url} target="_blank" class="tooltip" data-tip={status.description || status.state}>
-                                <span class="badge {getStatusColor(status.state)} gap-1">
-                                    {#if status.state === 'success'}
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                        </svg>
-                                    {:else if status.state === 'failure' || status.state === 'error'}
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                        </svg>
-                                    {:else}
-                                        <span class="loading loading-spinner loading-xs"></span>
-                                    {/if}
-                                    {status.name}
-                                </span>
-                            </a>
-                        {/each}
+                 <div class="collapse collapse-arrow bg-base-200 mb-4 rounded-box">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-md font-medium">
+                        CI Status
+                    </div>
+                    <div class="collapse-content">
+                         <div class="flex flex-col gap-2 mt-2">
+                            {#each ciStatuses as status}
+                                <div class="flex items-center gap-2">
+                                     <div class="badge {getStatusColor(status.state)} badge-sm"></div>
+                                     <a href={status.url} target="_blank" class="link link-hover flex-1 truncate" title={status.description || status.state}>
+                                         {status.name}
+                                     </a>
+                                     <span class="text-xs text-base-content/60 uppercase">{status.state.replace('_', ' ')}</span>
+                                </div>
+                            {/each}
+                        </div>
                     </div>
                 </div>
             {/if}
