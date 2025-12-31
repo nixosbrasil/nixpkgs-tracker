@@ -192,7 +192,15 @@
                     <div class="card-body">
                         <h3 class="card-title">{baseBranchStatus.name}</h3>
                         <div class="badge {baseBranchStatus.color === 'success' ? 'badge-success' : 'badge-error'} gap-2">
-                             {baseBranchStatus.status}
+                             {#if baseBranchStatus.status === 'Merged'}
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                             {:else}
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                             {/if}
                         </div>
                     </div>
                  </div>
@@ -205,7 +213,17 @@
                                 <span class="loading loading-spinner loading-md"></span>
                              {:else}
                                 <div class="badge {branchesStatus[branch]?.color === 'success' ? 'badge-success' : (branchesStatus[branch]?.color === 'error' ? 'badge-error' : 'badge-neutral')} badge-lg">
-                                    {branchesStatus[branch]?.status}
+                                    {#if branchesStatus[branch]?.status === 'Merged'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                        </svg>
+                                    {:else if branchesStatus[branch]?.status === 'Not Merged'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                    {:else}
+                                        {branchesStatus[branch]?.status}
+                                    {/if}
                                 </div>
                              {/if}
                         </div>
