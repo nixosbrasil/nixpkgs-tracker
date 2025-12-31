@@ -146,21 +146,20 @@
         </div>
       {/if}
 
-      <div class="py-6 flex flex-col gap-2">
+      <div class="py-6 flex flex-col gap-2 items-center">
         {#if baseBranchStatus}
-            <div class="badge badge-outline gap-2 p-4 text-lg w-full justify-between">
-                <span>{baseBranchStatus.status}</span>
+            <div class="badge badge-outline gap-2 p-4 text-lg">
                 {#if baseBranchStatus.color === 'success'}
                     <span>✅</span>
                 {:else}
                     <span>❌</span>
                 {/if}
+                <span>{baseBranchStatus.status}</span>
             </div>
         {:else}
             {#each branches as branch}
                  {#if branchesStatus[branch]}
-                    <div class="badge badge-outline gap-2 p-4 text-lg w-full justify-between">
-                         <span>{branchesStatus[branch].status}</span>
+                    <div class="badge badge-outline gap-2 p-4 text-lg">
                          {#if branchesStatus[branch].class === 'loading'}
                             <span class="loading loading-spinner loading-xs"></span>
                          {:else if branchesStatus[branch].color === 'success'}
@@ -168,6 +167,7 @@
                          {:else}
                             <span>❌</span>
                          {/if}
+                         <span>{branchesStatus[branch].status}</span>
                     </div>
                  {/if}
             {/each}
