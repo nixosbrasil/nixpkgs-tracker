@@ -1,0 +1,239 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { page } from "$app/stores";
+  import {
+    defaultBranches,
+    getAllBranches,
+    getPR,
+    hasToken,
+    setToken,
+    isContain,
+    type PR,
+    saveHistory,
+  } from "$lib/utils";
+
+  let prNumber: string;
+  let prHeader: PR | null = null;
+  let loading = true;
+  let error = "";
+  let branches: string[] = defaultBranches;
+  let branchesStatus: Record<string, { status: string; color: string; class: string }> = {};
+  let baseBranchStatus: { name: string; status: string; color: string; class: string } | null = null;
+
+  // Token handling
+  let tokenInput = "";
+  let tokenSet = false;
+
+  $: prNumber = $page.params.pr ?? "";
+
+  onMount(async () => {
+    tokenSet = hasToken();
+    try {
+        const dynamicBranches = await getAllBranches();
+        branches = dynamicBranches;
+    } catch (e) {
+        console.error("Failed to load branches", e);
+    }
+
+    // Initialize statuses
+    branches.forEach((branch) => {
+        branchesStatus[branch] = { status: 'pending', color: 'neutral', class: 'loading' };
+    });
+
+    if (prNumber) {
+        handlePR(prNumber);
+    }
+  });
+
+  async function handlePR(pr: string) {
+    loading = true;
+    error = "";
+    prHeader = null;
+    branchesStatus = {};
+     branches.forEach((branch) => {
+        branchesStatus[branch] = { status: 'checking...', color: 'neutral', class: 'loading' };
+    });
+
+
+    const prInt = parseInt(pr, 10);
+    if (prInt < 20000) {
+      error = "Pull Request before 20000 are not supported";
+      loading = false;
+      return;
+    }
+
+    const header = await getPR(pr);
+    prHeader = header;
+
+    if (header.status === 404) {
+      error = "PR not found";
+      loading = false;
+      return;
+    }
+
+    if (header.status === 403) {
+      error = "Rate limit exceeded. Please set a GitHub token.";
+      loading = false;
+      return;
+    }
+
+     if (header.status === 401) {
+      error = "Unauthorized. Please check your token.";
+      loading = false;
+      setToken("");
+      tokenSet = false;
+      return;
+    }
+
+    // Save history
+    if (header.merge_commit_sha) {
+        saveHistory({
+            pr: prInt,
+            title: header.title,
+            mergeCommit: header.merge_commit_sha
+        });
+    }
+
+    const mergeCommit = header.merge_commit_sha;
+
+    if (header.base && header.base.startsWith("release-")) {
+        await checkBaseBranch(header);
+    } else {
+        await Promise.all(branches.map(async (branch) => {
+            await checkBranch(branch, mergeCommit);
+        }));
+    }
+    loading = false;
+  }
+
+  async function checkBranch(branch: string, mergeCommit: string) {
+      // If PR is not merged yet (no merge commit), it can't be in any branch
+      if (!mergeCommit) {
+        branchesStatus[branch] = { status: 'Not Merged', color: 'neutral', class: '' };
+        branchesStatus = {...branchesStatus};
+        return;
+      }
+
+      const merged = await isContain(branch, mergeCommit);
+      if (merged) {
+        branchesStatus[branch] = { status: 'Merged', color: 'success', class: '' };
+      } else {
+        branchesStatus[branch] = { status: 'Not Merged', color: 'error', class: '' };
+      }
+      branchesStatus = {...branchesStatus};
+  }
+
+  async function checkBaseBranch(header: PR) {
+      const baseBranch = header.base;
+      const merged = header.merged;
+      if (baseBranch) {
+          if (merged) {
+               baseBranchStatus = { name: baseBranch, status: 'Merged', color: 'success', class: '' };
+          } else {
+               baseBranchStatus = { name: baseBranch, status: 'Not Merged', color: 'error', class: '' };
+          }
+      }
+  }
+
+  function saveTokenHandler() {
+      setToken(tokenInput);
+      tokenSet = true;
+      if (prNumber) handlePR(prNumber);
+  }
+</script>
+
+<div class="container mx-auto p-4 max-w-3xl">
+    <div class="breadcrumbs text-sm mb-4">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li>Tracking PR #{prNumber}</li>
+      </ul>
+    </div>
+
+    {#if error}
+        <div role="alert" class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{error}</span>
+        </div>
+        {#if error.includes("token") || error.includes("Unauthorized")}
+             <div class="card bg-base-100 shadow-xl mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">GitHub Token</h2>
+                    <input type="text" placeholder="Paste your token here" class="input input-bordered w-full" bind:value={tokenInput} />
+                    <div class="card-actions justify-end">
+                        <button class="btn btn-primary" on:click={saveTokenHandler}>Save & Retry</button>
+                    </div>
+                </div>
+            </div>
+        {/if}
+    {/if}
+
+    {#if prHeader && !error}
+        <div class="card bg-base-100 shadow-xl mb-6">
+          <div class="card-body">
+            <h2 class="card-title text-2xl flex justify-between">
+                <a href="https://github.com/nixos/nixpkgs/pull/{prNumber}" target="_blank" class="link link-hover text-primary">
+                    {prHeader.title}
+                </a>
+            </h2>
+            <div class="flex gap-2 mb-2">
+                 <span class="badge badge-lg {prHeader.closed && !prHeader.merged ? 'badge-error' : (prHeader.merged ? 'badge-success' : 'badge-neutral')}">
+                    {prHeader.merged ? 'Merged' : (prHeader.closed ? 'Closed' : 'Open')}
+                </span>
+            </div>
+             <p><strong>Base:</strong> {prHeader.base}</p>
+             <p><strong>Merge Commit:</strong> {prHeader.merge_commit_sha || 'Not merged yet'}</p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            {#if baseBranchStatus}
+                 <div class="card bg-base-100 shadow-xl border-l-4 {baseBranchStatus.color === 'success' ? 'border-success' : 'border-error'}">
+                    <div class="card-body">
+                        <h3 class="card-title">{baseBranchStatus.name}</h3>
+                        <div class="badge {baseBranchStatus.color === 'success' ? 'badge-success' : 'badge-error'} gap-2">
+                             {#if baseBranchStatus.status === 'Merged'}
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                             {:else}
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                             {/if}
+                        </div>
+                    </div>
+                 </div>
+            {:else}
+                {#each branches as branch}
+                    <div class="card bg-base-100 shadow-xl border-l-4 {branchesStatus[branch]?.color === 'success' ? 'border-success' : (branchesStatus[branch]?.color === 'error' ? 'border-error' : 'border-neutral')}">
+                        <div class="card-body flex-row justify-between items-center">
+                            <h3 class="card-title text-lg">{branch}</h3>
+                             {#if branchesStatus[branch]?.class === 'loading'}
+                                <span class="loading loading-spinner loading-md"></span>
+                             {:else}
+                                <div class="badge {branchesStatus[branch]?.color === 'success' ? 'badge-success' : (branchesStatus[branch]?.color === 'error' ? 'badge-error' : 'badge-neutral')} badge-lg">
+                                    {#if branchesStatus[branch]?.status === 'Merged'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                        </svg>
+                                    {:else if branchesStatus[branch]?.status === 'Not Merged'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                    {:else}
+                                        {branchesStatus[branch]?.status}
+                                    {/if}
+                                </div>
+                             {/if}
+                        </div>
+                    </div>
+                {/each}
+            {/if}
+        </div>
+    {:else if loading && !error}
+        <div class="flex justify-center p-10">
+            <span class="loading loading-infinity loading-lg text-primary"></span>
+        </div>
+    {/if}
+</div>

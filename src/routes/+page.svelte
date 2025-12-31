@@ -2,319 +2,122 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import {
-    defaultBranches,
-    getAllBranches,
-    getPR,
     hasToken,
-    isContain,
     setToken,
-    type PR,
     getHistoryList,
-    saveHistory,
     deleteHistory,
     type History
   } from "$lib/utils";
 
-  let branches: string[] = defaultBranches;
   let prInput = "";
   let tokenInput = "";
-  let title = "Nixpkgs-Tracker";
-  let titleColor = "";
-  let titleHref = "";
-  let checkButtonDisabled = false;
-  let saveTokenButtonText = "Set Token";
-  let tokenMessage = "";
-  let branchesStatus: Record<string, { status: string; color: string; class: string }> = {};
-  let baseBranchStatus: { name: string; status: string; color: string; class: string } | null = null;
-  let isDark = true;
+  let tokenSet = false;
   let historyList: History[] = [];
 
-  // Initialize branchesStatus
-  branches.forEach((branch) => {
-    branchesStatus[branch] = { status: branch, color: "", class: "" };
-  });
-
-  onMount(async () => {
-    // Fetch dynamic branches
-    const dynamicBranches = await getAllBranches();
-    branches = dynamicBranches;
-
-    // Initialize branchesStatus for any new branches
-    branches.forEach((branch) => {
-      if (!branchesStatus[branch]) {
-        branchesStatus[branch] = { status: branch, color: "", class: "" };
-      }
-    });
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const pr = urlParams.get("pr");
-
-    isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    updateColorScheme(isDark);
-
-    if (hasToken()) {
-        tokenMessage = "Token is set";
-        saveTokenButtonText = "Change Token";
-    }
-
+  onMount(() => {
+    tokenSet = hasToken();
     historyList = getHistoryList();
 
+    // Check for query param 'pr' to support legacy redirects or direct access
+    const urlParams = new URLSearchParams(window.location.search);
+    const pr = urlParams.get("pr");
     if (pr) {
-      prInput = pr;
-      handlePR(pr);
+        goto(`/track/${pr}`);
     }
   });
-
-  function updateColorScheme(dark: boolean) {
-    isDark = dark;
-    if (typeof document !== 'undefined') {
-        document.body.style.backgroundColor = isDark ? "#333" : "#fff";
-        document.body.style.color = isDark ? "#fff" : "#333";
-    }
-  }
-
-  function toggleColorScheme() {
-    updateColorScheme(!isDark);
-  }
-
-  function handleTitleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      toggleColorScheme();
-    }
-  }
-
-  function handleTokenKeypress(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      saveToken();
-    }
-  }
-
-  function saveToken() {
-    setToken(tokenInput);
-    tokenMessage = "Token is set";
-    saveTokenButtonText = "Change Token";
-    tokenInput = "";
-  }
 
   function handlePRKeypress(e: KeyboardEvent) {
     if (e.key === "Enter") {
-      redirectToPRPage();
+      submitPR();
     }
   }
 
-  function redirectToPRPage() {
+  function submitPR() {
     const match = prInput.match(/\/pull\/(\d+)/);
     const pr = match ? match[1] : prInput;
 
     if (pr) {
-      goto(`?pr=${pr}`);
-      handlePR(pr);
+      goto(`/track/${pr}`);
     }
   }
 
-  function enableButton(set: boolean) {
-    checkButtonDisabled = !set;
+  function saveTokenHandler() {
+    setToken(tokenInput);
+    tokenSet = true;
+    tokenInput = "";
   }
 
-  function setPRtitle(newTitle: string) {
-    title = newTitle;
-    document.title = newTitle;
-  }
-
-  async function handlePR(pr: string) {
-    enableButton(false);
-    titleColor = "";
-    titleHref = "";
-
-    const prNumber = parseInt(pr, 10);
-    if (prNumber < 20000) {
-      setPRtitle("Pull Request before 20000 are not supported");
-      titleColor = "red";
-      enableButton(true);
-      return;
-    }
-
-    const prHeader = await getPR(pr);
-
-    if (prHeader.closed) {
-      setPRtitle("PR is closed");
-      titleColor = "red";
-      enableButton(true);
-      return;
-    }
-
-    if (prHeader.status === 404) {
-      setPRtitle("PR not found");
-      titleHref = "#";
-      titleColor = "red";
-      enableButton(true);
-      return;
-    }
-
-    if (prHeader.status === 403) {
-      setPRtitle("Rate limit exceeded -- Please set token");
-      titleColor = "red";
-      enableButton(true);
-      return;
-    }
-
-    if (prHeader.status === 401) {
-      setPRtitle("Unauthorized -- Please set correct token");
-      titleColor = "red";
-
+  function removeTokenHandler() {
       setToken("");
-      saveTokenButtonText = "Set Token";
-      tokenMessage = "";
-
-      enableButton(true);
-      return;
-    }
-
-    titleHref = "https://github.com/nixos/nixpkgs/pull/" + pr;
-    setPRtitle(prHeader.title);
-
-    const mergeCommit = prHeader.merge_commit_sha;
-
-    // Save history
-    saveHistory({
-        pr: prNumber,
-        title: prHeader.title,
-        mergeCommit: mergeCommit
-    });
-    historyList = getHistoryList();
-
-    async function checkBranch(branch: string) {
-      const merged = await isContain(branch, mergeCommit);
-      if (merged) {
-        branchesStatus[branch] = { status: `${branch} ✅`, color: "green", class: "" };
-      } else {
-        branchesStatus[branch] = { status: `${branch} ❌`, color: "gray", class: "unmerged" };
-      }
-    }
-
-    async function checkBaseBranch(header: PR) {
-      const baseBranch = header.base;
-      const merged = header.merged;
-
-      if (baseBranch) {
-        if (merged) {
-             baseBranchStatus = { name: baseBranch, status: `${baseBranch} ✅`, color: "green", class: "" };
-        } else {
-             baseBranchStatus = { name: baseBranch, status: `${baseBranch} ❌`, color: "gray", class: "unmerged" };
-        }
-      }
-    }
-
-    if (prHeader.base && prHeader.base.startsWith("release-")) {
-        branchesStatus = {};
-        await checkBaseBranch(prHeader);
-    } else {
-        baseBranchStatus = null;
-        await Promise.all(branches.map(async (branch) => {
-            await checkBranch(branch);
-        }));
-        branchesStatus = { ...branchesStatus };
-    }
-
-    enableButton(true);
+      tokenSet = false;
   }
 
   function removeHistory(pr: number) {
       deleteHistory(pr);
       historyList = getHistoryList();
   }
-
-  function loadHistory(pr: number) {
-      prInput = pr.toString();
-      redirectToPRPage();
-  }
 </script>
 
-<div id="app">
-  <div>
-    <h1 id="title"
-        style="color: {titleColor}; cursor: pointer;"
-        on:click={toggleColorScheme}
-        on:keydown={handleTitleKeydown}
-        role="button"
-        tabindex="0"
-    >{title}</h1>
-    <p>Check if a PR is merged to the following branches. <a href="https://github.com/ocfox/nixpkgs-tracker" target="_blank">Source</a></p>
-    <p>If you just check it a couple times an hour, it will work fine without the token.</p>
-    <div class="token">
-      <input type="text" name="token" id="token" class="input" placeholder="Set Token for gh limit" bind:value={tokenInput} on:keypress={handleTokenKeypress}>
-      <button id="save-token" type="button" on:click={saveToken}>{saveTokenButtonText}</button>
-      {#if tokenMessage}
-        <span style="margin-left: 5px;">{tokenMessage}</span>
+<div class="hero min-h-screen bg-base-200">
+  <div class="hero-content text-center">
+    <div class="max-w-md">
+      <h1 class="text-5xl font-bold">Nixpkgs Tracker</h1>
+      <p class="py-6">Track the status of your Nixpkgs Pull Request across different branches.</p>
+
+      <div class="join w-full mb-8">
+        <input
+            class="input input-bordered join-item w-full"
+            placeholder="Enter PR Number (e.g., 12345)"
+            bind:value={prInput}
+            on:keypress={handlePRKeypress}
+        />
+        <button class="btn btn-primary join-item" on:click={submitPR}>Track</button>
+      </div>
+
+       {#if historyList.length > 0}
+        <div class="card bg-base-100 shadow-xl compact mb-8 text-left">
+            <div class="card-body">
+                <h3 class="card-title text-sm opacity-70">Recent History</h3>
+                <ul class="menu bg-base-100 w-full p-0 [&_li>*]:rounded-none">
+                    {#each historyList as item}
+                        <li class="flex flex-row justify-between items-center hover:bg-base-200 p-2 rounded-md">
+                            <a href="/track/{item.pr}" class="flex-grow truncate">
+                                <span class="font-bold">#{item.pr}</span>
+                                <span class="opacity-70 ml-2 text-xs truncate max-w-[200px]">{item.title}</span>
+                            </a>
+                            <button class="btn btn-ghost btn-xs" on:click|preventDefault|stopPropagation={() => removeHistory(item.pr)}>✕</button>
+                        </li>
+                    {/each}
+                </ul>
+            </div>
+        </div>
       {/if}
-    </div>
 
-    <div class="card">
-      <input type="text" id="pr" name="text" class="input" placeholder="Pull Request Number" bind:value={prInput} on:keypress={handlePRKeypress} disabled={checkButtonDisabled}>
-      <button id="check" type="button" on:click={redirectToPRPage} disabled={checkButtonDisabled}>Check</button>
-    </div>
-    {#if titleHref}
-        <a id="pr-link" href={titleHref} target="_blank">{title}</a>
-    {/if}
-    <div id="branch" class="card">
-        {#if baseBranchStatus}
-            <h2 id="base-branch" style="color: {baseBranchStatus.color}" class={baseBranchStatus.class}>{baseBranchStatus.status}</h2>
-        {:else}
-            {#each branches as branch}
-                <h2 id={branch} style="color: {branchesStatus[branch]?.color}" class={branchesStatus[branch]?.class}>{branchesStatus[branch]?.status}</h2>
-            {/each}
-        {/if}
+      <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+        <input type="checkbox" />
+        <div class="collapse-title text-xl font-medium">
+          Settings / Token
+        </div>
+        <div class="collapse-content">
+            <p class="text-sm mb-4">Set a GitHub token to avoid rate limits.</p>
+            {#if tokenSet}
+                <div class="alert alert-success mb-2">
+                    <span>Token is set!</span>
+                    <button class="btn btn-sm btn-ghost" on:click={removeTokenHandler}>Clear</button>
+                </div>
+            {:else}
+                <div class="join w-full">
+                    <input type="password" class="input input-bordered join-item w-full" placeholder="GitHub Token" bind:value={tokenInput} />
+                    <button class="btn btn-secondary join-item" on:click={saveTokenHandler}>Save</button>
+                </div>
+            {/if}
+        </div>
+      </div>
+
+      <div class="mt-8 text-sm opacity-50">
+        <a href="https://github.com/ocfox/nixpkgs-tracker" target="_blank" class="link link-hover">Source Code</a>
+      </div>
+
     </div>
   </div>
-
-  {#if historyList.length > 0}
-  <div class="history">
-      <h3>History</h3>
-      <ul>
-          {#each historyList as item}
-            <li>
-                <button class="link-button" on:click={() => loadHistory(item.pr)}>#{item.pr}</button>: {item.title}
-                <button style="padding: 2px 6px; font-size: 0.8em; margin-left: 5px;" on:click={() => removeHistory(item.pr)}>x</button>
-            </li>
-          {/each}
-      </ul>
-  </div>
-  {/if}
 </div>
-
-<style>
-    .history {
-        position: absolute;
-        top: 0;
-        left: 0;
-        margin-top: 5em; /* Adjusted to not overlap with top */
-        padding: 0.5em;
-        text-align: left;
-    }
-    .history ul {
-        list-style-type: none;
-        padding: 0;
-    }
-    .history li {
-        margin-bottom: 0.25em;
-    }
-    .link-button {
-        background: none;
-        border: none;
-        padding: 0;
-        color: #646cff;
-        cursor: pointer;
-        text-decoration: underline;
-        font-family: inherit;
-        font-size: inherit;
-    }
-    .link-button:hover {
-        color: #535bf2;
-    }
-
-    @media (max-width: 600px) {
-      .history {
-        display: none;
-      }
-    }
-</style>
