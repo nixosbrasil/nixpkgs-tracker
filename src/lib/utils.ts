@@ -6,6 +6,8 @@ export const branches = [
   "nixos-unstable-small",
   "nixpkgs-unstable",
   "nixos-unstable",
+  "nixos-25.11",
+  "nixos-25.05",
 ];
 
 export function setToken(token: string) {
