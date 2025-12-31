@@ -1,24 +1,38 @@
-### How this works
+# sv
 
-With Github API:
-get pr merged commit hash -> compare target branch HEAD ... commit -> get status
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-nixpkgs-tracker not same as [nixpk.gs/pr-tracker](https://nixpk.gs/pr-tracker.html),
-it does not pass any requests through server to get PR status.
+## Creating a project
 
-Therefore, there is no need to worry about any performance issues.
+If you're seeing this, you've probably already done this step. Congrats!
 
-You could get static files with:
 ```sh
-  nix build github:ocfox/nixpkgs-tracker
+# create a new project in the current directory
+npx sv create
+
+# create a new project in my-app
+npx sv create my-app
 ```
 
-### Features
+## Developing
 
-- [x] Show PR status
-- [x] Stable link (e.g. https://nixpkgs-tracker.ocfox.me/?pr=331928)
-- [x] Github token for more requests limit (Cookie) (optional)
-- [x] Click `Nixpkgs-Tracker` to switch light / dark
-- [x] Check 5 branches at the same time
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
-<img width="1552" alt="image" src="https://github.com/user-attachments/assets/d247eb27-0320-4384-ad3f-36daca4d0ac0">
+```sh
+npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+
+## Building
+
+To create a production version of your app:
+
+```sh
+npm run build
+```
+
+You can preview the production build with `npm run preview`.
+
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
