@@ -1,3 +1,5 @@
+import { browser } from '$app/environment';
+
 export const branches = [
   "staging-next",
   "master",
@@ -7,11 +9,16 @@ export const branches = [
 ];
 
 export function setToken(token: string) {
-  localStorage.setItem("token", token);
+  if (browser) {
+    localStorage.setItem("token", token);
+  }
 }
 
 function getToken() {
-  return localStorage.getItem("token");
+  if (browser) {
+    return localStorage.getItem("token");
+  }
+  return null;
 }
 
 export function hasToken(): boolean {
@@ -27,17 +34,17 @@ function header() {
   }
 }
 
-const headers = header();
-
 export type PR = {
   title: string;
   status: number;
   closed: boolean;
   merged: boolean;
   base: string;
+  merge_commit_sha: string;
 };
 
 export async function getPR(pr: string): Promise<PR> {
+  const headers = header();
   const response = await fetch(
     `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}`,
     { headers },
@@ -51,26 +58,15 @@ export async function getPR(pr: string): Promise<PR> {
     closed: data.state === "closed" && !data.merged_at,
     merged: data.merged_at !== null,
     base: data.base?.ref,
+    merge_commit_sha: data.merge_commit_sha,
   };
 }
-
-export async function getMergeCommit(pr: string): Promise<string> {
-  const response = await fetch(
-    `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}`,
-    { headers },
-  );
-
-  const data = await response.json();
-
-  return data.merge_commit_sha;
-}
-
-
 
 export async function isContain(
   branch: string,
   commit: string,
 ): Promise<boolean> {
+  const headers = header();
   const url = `https://api.github.com/repos/nixos/nixpkgs/compare/${branch}...${commit}`;
   const response = await fetch(url, { headers });
   if (response.status === 404) {
@@ -87,6 +83,7 @@ export type History = {
 };
 
 export function getHistoryList(): History[] {
+  if (!browser) return [];
   const history = localStorage.getItem("history");
   if (history) {
     return JSON.parse(history);
@@ -95,9 +92,13 @@ export function getHistoryList(): History[] {
 }
 
 export function saveHistory(history: History) {
+  if (!browser) return;
   const historyList = getHistoryList();
-  historyList.push(history);
-  localStorage.setItem("history", JSON.stringify(historyList));
+  // Check if it already exists to avoid duplicates
+  if (!historyList.some(h => h.pr === history.pr)) {
+      historyList.push(history);
+      localStorage.setItem("history", JSON.stringify(historyList));
+  }
 }
 
 export function getHistoryTitle(pr: number): string {
@@ -110,6 +111,7 @@ export function getHistoryTitle(pr: number): string {
 }
 
 export function deleteHistory(pr: number) {
+  if (!browser) return;
   const history = getHistoryList();
   const newHistory = history.filter((item) => item.pr !== pr);
   localStorage.setItem("history", JSON.stringify(newHistory));
