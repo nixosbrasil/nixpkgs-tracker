@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/stores";
+  import { marked } from "marked";
   import {
     defaultBranches,
     getAllBranches,
@@ -203,6 +204,19 @@
                 </span>
             </h2>
 
+            <!-- Description Toggle (Moved up as requested) -->
+             <div class="collapse collapse-arrow bg-base-200 mb-4 rounded-box">
+                <input type="checkbox" />
+                <div class="collapse-title text-md font-medium">
+                    PR Description
+                </div>
+                <div class="collapse-content">
+                    <article class="prose prose-sm max-w-none">
+                         {@html marked.parse(prHeader.body || "No description provided.")}
+                    </article>
+                </div>
+            </div>
+
             <div class="flex flex-wrap gap-2 mb-4 items-center">
                  <span class="badge badge-lg {prHeader.closed && !prHeader.merged ? 'badge-error' : (prHeader.merged ? 'badge-success' : 'badge-neutral')}">
                     {prHeader.merged ? 'Merged' : (prHeader.closed ? 'Closed' : 'Open')}
@@ -271,19 +285,6 @@
                             {/each}
                          </div>
                      {/if}
-                </div>
-            </div>
-
-            <!-- Description Toggle -->
-             <div class="collapse collapse-arrow bg-base-200 mt-4 rounded-box">
-                <input type="checkbox" />
-                <div class="collapse-title text-md font-medium">
-                    PR Description
-                </div>
-                <div class="collapse-content">
-                    <article class="prose prose-sm max-w-none">
-                         <p class="whitespace-pre-wrap">{prHeader.body || "No description provided."}</p>
-                    </article>
                 </div>
             </div>
 
