@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import {
-    branches,
+    defaultBranches,
+    getAllBranches,
     getPR,
     hasToken,
     isContain,
@@ -14,6 +15,7 @@
     type History
   } from "$lib/utils";
 
+  let branches: string[] = defaultBranches;
   let prInput = "";
   let tokenInput = "";
   let title = "Nixpkgs-Tracker";
@@ -32,7 +34,18 @@
     branchesStatus[branch] = { status: branch, color: "", class: "" };
   });
 
-  onMount(() => {
+  onMount(async () => {
+    // Fetch dynamic branches
+    const dynamicBranches = await getAllBranches();
+    branches = dynamicBranches;
+
+    // Initialize branchesStatus for any new branches
+    branches.forEach((branch) => {
+      if (!branchesStatus[branch]) {
+        branchesStatus[branch] = { status: branch, color: "", class: "" };
+      }
+    });
+
     const urlParams = new URLSearchParams(window.location.search);
     const pr = urlParams.get("pr");
 

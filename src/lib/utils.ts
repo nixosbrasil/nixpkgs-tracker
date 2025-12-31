@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 
-export const branches = [
+export const defaultBranches = [
   "staging-next",
   "master",
   "nixos-unstable-small",
@@ -31,6 +31,32 @@ function header() {
     return {
       Authorization: `token ${token}`,
     };
+  }
+}
+
+export async function getAllBranches(): Promise<string[]> {
+  const headers = header();
+  try {
+    const response = await fetch(
+      "https://api.github.com/repos/NixOS/nixpkgs/git/matching-refs/heads/nix",
+      { headers },
+    );
+    if (!response.ok) {
+        console.error("Failed to fetch branches");
+        return defaultBranches;
+    }
+    const data = await response.json();
+    const nixosBranches = data
+      .map((b: any) => b.ref.replace("refs/heads/", ""))
+      .filter((name: string) => /^(nixos|nixpkgs)-\d+\.\d+(-small|-darwin)?$/.test(name))
+      .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }))
+      .slice(0, 4); // Get top 4 latest stable branches (2 nixos + 2 nixpkgs approx)
+
+    // Merge and deduplicate
+    return Array.from(new Set([...defaultBranches, ...nixosBranches]));
+  } catch (e) {
+    console.error("Error fetching branches:", e);
+    return defaultBranches;
   }
 }
 
