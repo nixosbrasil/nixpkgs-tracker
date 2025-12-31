@@ -8,8 +8,6 @@
     isContain,
     type PR,
     saveHistory,
-    getHistoryList,
-    type History
   } from "$lib/utils";
 
   let prNumber = $page.params.pr;
@@ -17,6 +15,7 @@
   let titleColor = "";
   let titleHref = "";
   let branches: string[] = defaultBranches;
+  // We use 'color' to store the status type (success/error) for logic, but we won't use it for the badge background directly anymore.
   let branchesStatus: Record<string, { status: string; color: string; class: string }> = {};
   let baseBranchStatus: { name: string; status: string; color: string; class: string } | null = null;
   let isDark = true;
@@ -24,7 +23,7 @@
 
   // Initialize branchesStatus
   branches.forEach((branch) => {
-    branchesStatus[branch] = { status: branch, color: "badge-ghost", class: "loading" };
+    branchesStatus[branch] = { status: branch, color: "neutral", class: "loading" };
   });
 
   onMount(async () => {
@@ -37,7 +36,7 @@
     // Initialize branchesStatus for any new branches
     branches.forEach((branch) => {
       if (!branchesStatus[branch]) {
-        branchesStatus[branch] = { status: branch, color: "badge-ghost", class: "loading" };
+        branchesStatus[branch] = { status: branch, color: "neutral", class: "loading" };
       }
     });
 
@@ -98,9 +97,9 @@
     async function checkBranch(branch: string) {
       const merged = await isContain(branch, mergeCommit);
       if (merged) {
-        branchesStatus[branch] = { status: `${branch}`, color: "badge-success", class: "" };
+        branchesStatus[branch] = { status: `${branch}`, color: "success", class: "" };
       } else {
-        branchesStatus[branch] = { status: `${branch}`, color: "badge-error", class: "" };
+        branchesStatus[branch] = { status: `${branch}`, color: "error", class: "" };
       }
       branchesStatus = { ...branchesStatus };
     }
@@ -111,20 +110,14 @@
 
       if (baseBranch) {
         if (merged) {
-             baseBranchStatus = { name: baseBranch, status: `${baseBranch}`, color: "badge-success", class: "" };
+             baseBranchStatus = { name: baseBranch, status: `${baseBranch}`, color: "success", class: "" };
         } else {
-             baseBranchStatus = { name: baseBranch, status: `${baseBranch}`, color: "badge-error", class: "" };
+             baseBranchStatus = { name: baseBranch, status: `${baseBranch}`, color: "error", class: "" };
         }
       }
     }
 
     if (prHeader.base && prHeader.base.startsWith("release-")) {
-        // Reset branchesStatus if we are only checking base branch, or maybe we want to keep them?
-        // The original code reset it.
-        // branchesStatus = {};
-        // But the original code cleared branchesStatus.
-        // Let's hide standard branches if it is a release branch PR?
-        // Or maybe just show the base branch.
         await checkBaseBranch(prHeader);
     } else {
         baseBranchStatus = null;
@@ -155,20 +148,25 @@
 
       <div class="py-6 flex flex-col gap-2">
         {#if baseBranchStatus}
-            <div class="badge {baseBranchStatus.color} gap-2 p-4 text-lg w-full">
-                {baseBranchStatus.status}
+            <div class="badge badge-outline gap-2 p-4 text-lg w-full justify-between">
+                <span>{baseBranchStatus.status}</span>
+                {#if baseBranchStatus.color === 'success'}
+                    <span>✅</span>
+                {:else}
+                    <span>❌</span>
+                {/if}
             </div>
         {:else}
             {#each branches as branch}
                  {#if branchesStatus[branch]}
-                    <div class="badge {branchesStatus[branch].color} gap-2 p-4 text-lg w-full justify-between">
-                         {branchesStatus[branch].status}
+                    <div class="badge badge-outline gap-2 p-4 text-lg w-full justify-between">
+                         <span>{branchesStatus[branch].status}</span>
                          {#if branchesStatus[branch].class === 'loading'}
                             <span class="loading loading-spinner loading-xs"></span>
-                         {:else if branchesStatus[branch].color === 'badge-success'}
-                            ✅
+                         {:else if branchesStatus[branch].color === 'success'}
+                            <span>✅</span>
                          {:else}
-                            ❌
+                            <span>❌</span>
                          {/if}
                     </div>
                  {/if}
