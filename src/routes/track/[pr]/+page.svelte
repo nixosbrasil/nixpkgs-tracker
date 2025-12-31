@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/stores";
-  import { marked } from "marked";
   import {
     defaultBranches,
     getAllBranches,
@@ -212,7 +211,11 @@
                 </div>
                 <div class="collapse-content">
                     <article class="prose prose-sm max-w-none">
-                         {@html marked.parse(prHeader.body || "No description provided.")}
+                        {#if prHeader.body_html}
+                             {@html prHeader.body_html}
+                        {:else}
+                             <p class="whitespace-pre-wrap">{prHeader.body || "No description provided."}</p>
+                        {/if}
                     </article>
                 </div>
             </div>

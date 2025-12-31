@@ -25,13 +25,13 @@ export function hasToken(): boolean {
   return !!getToken();
 }
 
-function header() {
+function header(extraHeaders: Record<string, string> = {}) {
   const token = getToken();
+  const headers: Record<string, string> = { ...extraHeaders };
   if (token) {
-    return {
-      Authorization: `token ${token}`,
-    };
+    headers.Authorization = `token ${token}`;
   }
+  return headers;
 }
 
 export async function getAllBranches(): Promise<string[]> {
@@ -80,6 +80,7 @@ export type PR = {
   base: string;
   merge_commit_sha: string;
   body: string;
+  body_html?: string;
   user: User;
   merged_by: User | null;
   labels: Label[];
@@ -87,7 +88,9 @@ export type PR = {
 };
 
 export async function getPR(pr: string): Promise<PR> {
-  const headers = header();
+  const headers = header({
+    "Accept": "application/vnd.github.html+json"
+  });
   const response = await fetch(
     `https://api.github.com/repos/nixos/nixpkgs/pulls/${pr}`,
     { headers },
@@ -103,6 +106,7 @@ export async function getPR(pr: string): Promise<PR> {
     base: data.base?.ref,
     merge_commit_sha: data.merge_commit_sha,
     body: data.body,
+    body_html: data.body_html,
     user: data.user,
     merged_by: data.merged_by,
     labels: data.labels,
