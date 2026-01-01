@@ -9,7 +9,7 @@ export async function GET({ url, cookies }: RequestEvent) {
 
 	const mode = url.searchParams.get('mode') || 'read';
 	const state = crypto.randomUUID();
-	const scopes = 'read:user read:org';
+	const scopes = 'read:user';
 
 	const authUrl = new URL('https://github.com/login/oauth/authorize');
 	authUrl.searchParams.set('client_id', GITHUB_CLIENT_ID);
