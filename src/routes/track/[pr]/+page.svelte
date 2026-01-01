@@ -33,6 +33,15 @@
   $: prNumber = $page.params.pr ?? "";
 
   onMount(async () => {
+    // Ensure the PR value is a valid integer before processing.
+    // This is the critical security check to prevent injection attacks.
+    const prInt = parseInt(prNumber, 10);
+    if (isNaN(prInt) || prInt <= 0) {
+        error = "Invalid Pull Request number provided.";
+        loading = false;
+        return;
+    }
+
     tokenSet = hasToken();
     try {
         const dynamicBranches = await getAllBranches();
