@@ -1,38 +1,60 @@
-# sv
+# Nixpkgs Tracker
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A web application to track the status of [Nixpkgs](https://github.com/NixOS/nixpkgs) Pull Requests across different channels and branches.
 
-## Creating a project
+This tool helps NixOS users and maintainers verify if a specific Pull Request has been merged into branches like `nixos-unstable`, `nixpkgs-unstable`, `master`, or `staging-next`.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
 
-```sh
-# create a new project in the current directory
-npx sv create
+- **Multi-branch Tracking**: Check if a PR is present in various NixOS/nixpkgs branches.
+- **Detailed PR Info**: View PR title, description, labels, author, and reviewers.
+- **CI Status**: See the status of CI checks (OfBorg, GitHub Actions).
+- **History**: Keeps a local history of your recently tracked PRs.
+- **Rate Limit Handling**: Option to provide a GitHub Personal Access Token to avoid API rate limits.
+- **Responsive Design**: Built with Tailwind CSS and DaisyUI for a modern look.
 
-# create a new project in my-app
-npx sv create my-app
-```
+## Tech Stack
 
-## Developing
+- **Framework**: [SvelteKit](https://kit.svelte.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [DaisyUI](https://daisyui.com/)
+- **Language**: TypeScript
+- **Internationalization**: [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs)
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Development
 
-```sh
-npm run dev
+To get started with development:
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/nixosbrasil/nixpkgs-tracker.git
+   cd nixpkgs-tracker
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173`.
 
 ## Building
 
-To create a production version of your app:
+To create a production version of the app:
 
-```sh
+```bash
 npm run build
 ```
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## License
+
+This project is licensed under the [MIT License](LICENSE).
