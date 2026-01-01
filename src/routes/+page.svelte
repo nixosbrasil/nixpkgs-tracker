@@ -4,7 +4,6 @@
 	import { hasToken, setToken, getHistoryList, deleteHistory, type History } from '$lib/utils';
 
 	let prInput = '';
-	let tokenInput = '';
 	let tokenSet = false;
 	let historyList: History[] = [];
 
@@ -35,12 +34,6 @@
 		}
 	}
 
-	function saveTokenHandler() {
-		setToken(tokenInput);
-		tokenSet = true;
-		tokenInput = '';
-	}
-
 	async function removeTokenHandler() {
 		// Try to logout from server session first
 		try {
@@ -64,7 +57,7 @@
 			<h1 class="text-5xl font-bold">Nixpkgs Tracker</h1>
 			<p class="py-6">Track the status of your Nixpkgs Pull Request across different branches.</p>
 
-			<div class="mb-8 join w-full">
+			<div class="join mb-8 w-full">
 				<input
 					class="input-bordered input join-item w-full"
 					placeholder="Enter PR Number (e.g., 12345)"
@@ -120,17 +113,6 @@
 								>
 								Login with GitHub
 							</a>
-							<div class="divider">OR</div>
-							<div class="join w-full">
-								<input
-									type="password"
-									class="input-bordered input join-item w-full"
-									placeholder="Manual Token (Legacy)"
-									bind:value={tokenInput}
-								/>
-								<button class="btn join-item btn-secondary" on:click={saveTokenHandler}>Save</button
-								>
-							</div>
 						</div>
 					{/if}
 				</div>
