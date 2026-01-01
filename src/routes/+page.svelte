@@ -115,7 +115,7 @@
       </div>
 
       <div class="mt-8 text-sm opacity-50">
-        <a href="https://github.com/ocfox/nixpkgs-tracker" target="_blank" class="link link-hover">Source Code</a>
+        <a href="https://github.com/lucasew/nixpkgs-tracker" target="_blank" class="link link-hover">Source Code</a>
       </div>
 
     </div>
