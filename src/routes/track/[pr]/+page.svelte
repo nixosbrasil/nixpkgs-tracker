@@ -7,7 +7,6 @@
     getPR,
     getReviews,
     getDetailedCIStatus,
-    hasToken,
     setToken,
     isContain,
     type PR,
@@ -28,12 +27,10 @@
 
   // Token handling
   let tokenInput = "";
-  let tokenSet = false;
 
   $: prNumber = $page.params.pr ?? "";
 
   onMount(async () => {
-    tokenSet = hasToken();
     try {
         const dynamicBranches = await getAllBranches();
         branches = dynamicBranches;
@@ -87,7 +84,6 @@
       error = "Unauthorized. Please check your token.";
       loading = false;
       setToken("");
-      tokenSet = false;
       return;
     }
 
@@ -149,7 +145,6 @@
 
   function saveTokenHandler() {
       setToken(tokenInput);
-      tokenSet = true;
       if (prNumber) handlePR(prNumber);
   }
 
