@@ -1,10 +1,16 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { locales, localizeHref } from '$lib/paraglide/runtime';
+	import { syncAuthToken } from '$lib/utils';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 
 	let { children } = $props();
+
+	onMount(() => {
+		syncAuthToken();
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

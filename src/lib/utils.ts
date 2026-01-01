@@ -21,6 +21,21 @@ function getToken() {
 	return null;
 }
 
+export async function syncAuthToken() {
+	if (!browser) return;
+	try {
+		const res = await fetch('/api/auth/token');
+		if (res.ok) {
+			const data = await res.json();
+			if (data.token) {
+				setToken(data.token);
+			}
+		}
+	} catch (e) {
+		console.error('Failed to sync auth token', e);
+	}
+}
+
 export function hasToken(): boolean {
 	return !!getToken();
 }
