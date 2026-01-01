@@ -7,7 +7,6 @@
 		getPR,
 		getReviews,
 		getDetailedCIStatus,
-		hasToken,
 		setToken,
 		isContain,
 		type PR,
@@ -28,13 +27,9 @@
 		null;
 
 	// Token handling
-	let tokenInput = '';
-	let tokenSet = false;
-
 	$: prNumber = $page.params.pr ?? '';
 
 	onMount(async () => {
-		tokenSet = hasToken();
 		try {
 			const dynamicBranches = await getAllBranches();
 			branches = dynamicBranches;
@@ -87,7 +82,6 @@
 			error = 'Unauthorized. Please check your token.';
 			loading = false;
 			setToken('');
-			tokenSet = false;
 			return;
 		}
 
@@ -149,12 +143,6 @@
 		}
 	}
 
-	function saveTokenHandler() {
-		setToken(tokenInput);
-		tokenSet = true;
-		if (prNumber) handlePR(prNumber);
-	}
-
 	// Helper to determine contrast text color for badges
 	// Simple heuristic: if hex color is bright, use black, else white
 	function getContrastColor(hex: string) {
@@ -201,15 +189,10 @@
 		{#if error.includes('token') || error.includes('Unauthorized')}
 			<div class="card mb-4 bg-base-100 shadow-xl">
 				<div class="card-body">
-					<h2 class="card-title">GitHub Token</h2>
-					<input
-						type="text"
-						placeholder="Paste your token here"
-						class="input-bordered input w-full"
-						bind:value={tokenInput}
-					/>
+					<h2 class="card-title">GitHub Login Required</h2>
+					<p>Please login with GitHub to access this data and avoid rate limits.</p>
 					<div class="card-actions justify-end">
-						<button class="btn btn-primary" on:click={saveTokenHandler}>Save & Retry</button>
+						<a href="/api/auth/github" class="btn btn-primary">Login with GitHub</a>
 					</div>
 				</div>
 			</div>
@@ -318,7 +301,7 @@
 							<a
 								href={prHeader.user.html_url}
 								target="_blank"
-								class="badge gap-2 badge-lg pl-0 transition-colors hover:bg-base-200"
+								class="badge gap-2 pl-0 badge-lg transition-colors hover:bg-base-200"
 							>
 								<div class="avatar">
 									<div class="w-6 rounded-full">
@@ -334,7 +317,7 @@
 								<a
 									href={prHeader.merged_by.html_url}
 									target="_blank"
-									class="badge gap-2 badge-lg pl-0 transition-colors hover:bg-base-200"
+									class="badge gap-2 pl-0 badge-lg transition-colors hover:bg-base-200"
 								>
 									<div class="avatar">
 										<div class="w-6 rounded-full">
@@ -352,7 +335,7 @@
 									<a
 										href={approver.html_url}
 										target="_blank"
-										class="badge gap-2 badge-lg pl-0 transition-colors hover:bg-base-200"
+										class="badge gap-2 pl-0 badge-lg transition-colors hover:bg-base-200"
 									>
 										<div class="avatar">
 											<div class="w-6 rounded-full">
